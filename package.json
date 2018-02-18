@@ -1,0 +1,23 @@
+{
+  "name": "open-trivia",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IreeRodriguez/open-trivia.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/IreeRodriguez/open-trivia/issues"
+  },
+  "homepage": "https://github.com/IreeRodriguez/open-trivia#readme",
+  "dependencies": {
+    "browserify": "^16.1.0",
+    "shuffle-array": "^1.0.1"
+  }
+}
