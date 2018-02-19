@@ -1,11 +1,41 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-var shuffle = require('shuffle-array');
+// Variables globales:
+let shuffle = require('shuffle-array');
+let myOpenTrivia = null;
+let quizData = {
+    type: '',
+    questions: [],
+    choices: [],
+    rightAnswer: '', 
+    questionCount: 0,
+    rightCount: 0,
+    currentChoice: '', 
+    update: function() {
+        if (this.questionCount < this.questions.length) {
+            const currentQuestion = this.questions[this.questionCount];
 
-var myOpenTrivia;
+            if (this.type === 'boolean') {
+                this.choices = ['True', 'False'];
+            } else {
+                this.choices = currentQuestion.incorrect_answers;
+                this.choices.push(currentQuestion.correct_answer);  
+                shuffle(this.choices);
+            }
+            this.rightAnswer = currentQuestion.correct_answer;  
+        } else {
+            type = '';
+            questions = [];
+            choices = [];
+            rightAnswer = '';
+            questionCount = 0;
+            rightCount = 0;
+            currentChoice = '';
+        }
+    }
+};
 
 function openTrivia() {
     // DOM elements//
-    console.log('openTrivia');
     this.signInButton = document.getElementById('login');
     this.signInButton.addEventListener('click', this.signIn.bind(this));
     this.initFirebase();
@@ -14,34 +44,29 @@ function openTrivia() {
 // inicializar firebase y los productos a usar//
 openTrivia.prototype.initFirebase = function () {
     // productos de firebase//
-    console.log('initFirebase');
     this.auth = firebase.auth();
     this.auth.onAuthStateChanged(this.onAuthStateChanged.bind(this));
 };
 
 openTrivia.prototype.signIn = function () {
     // se usa cuenta de google para acceder
-    console.log('signIn');
     var provider = new firebase.auth.GoogleAuthProvider();
     this.auth.signInWithPopup(provider);
 };
 
 openTrivia.prototype.signOut = function () {
     // Sign out de Firebase.//
-    console.log('signOut');
     this.auth.signOut();
     location.reload();
 };
 
 openTrivia.prototype.onAuthStateChanged = function (user) {
-    console.log('onAuthStateChanged');
     if (user) { // si el usuario esta signed in//
         // se toma el su foto de perfil de google y su nombre//
         $('#loginContainer').addClass('hide');
         $('#quizContainer').removeClass('hide');
     } else { // si el usuario esta signed out//
         // location.reload();
-        console.log('signed out');
         $('#quizContainer').addClass('hide');
         $('#loginContainer').removeClass('hide');        
     }
@@ -53,60 +78,63 @@ $(document).ready(function () {
 });
 
 $('#begin').click(function () {
-    let type = $('#type').val();
-    let dificulty = $('#dificulty').val();
-    if (type === null || dificulty === null) {
-        alert('You must choose type and dificulty of the Trivia Test')
-    } else if (type === 'boolean') {
-        let test = `https://opentdb.com/api.php?amount=10&category=9&difficulty=${dificulty}&type=${type}`;
-        getTFQuiz(test);
-    } else {
-        let test = `https://opentdb.com/api.php?amount=10&category=9&difficulty=${dificulty}&type=${type}`;
-        getTest(test);
-    }
-
+    const type = $('#type').val();
+    const difficulty = $('#difficulty').val();
+    getTest(type, difficulty);
 });
 
-function getTest(test) {
-    fetch(test)
+function getTest(type, difficulty) {
+    if (type === null || difficulty === null) {
+        alert('You must choose type and difficulty of the Trivia Test');
+        return;
+    }     
+    const url = `https://opentdb.com/api.php?amount=10&category=9&difficulty=${difficulty}&type=${type}`;
+
+    fetch(url)
         .then(function (response) {
             return response.json();
         })
         .then(function (data) {
-            questions = data.results;
-            quiz();
-        })
+            if (data.results.length === 0) {
+                alert('Under construction');
+                //location.reload();
+            } else {            
+                quizData.type = type;
+                quizData.questions = data.results;
+                quizData.update();        
+                runQuiz();
+            }
+        });
 }
 
-function getTFQuiz(test) {
-    fetch(test)
-        .then(function (response) {
-            return response.json();
-        })
-        .then(function (data) {
-            questions = data.results;
-            quizTF();
-        })
+function createNextBtn() {
+    $('#quizContainer > #formAnswers').after(
+        `<a id="next" type="submit" class="waves-effect waves-light btn col s4 offset-s4">Next</a>`
+    )
+    $('#next').click(function (event) {
+        event.preventDefault();
+
+        if ($("input:radio[name='group1']").is(":checked") === false) {
+            alert("Must select an option.");
+            return;
+        }
+
+        if (quizData.currentChoice === quizData.rightAnswer) {
+            quizData.rightCount++;
+        }
+
+        quizData.update();
+        runQuiz();
+    });
 }
 
-let questions;
-let numQuestion = 0;
-let right = 0;
-let finalAnswer = '';
-
-function userAnswer(event) {    
-    let label = $(this).prop("labels");
-    let text = $(label).html();
-    finalAnswer = text;
-}
-
-function quiz() {
-    if (numQuestion === 10) {
+function runQuiz() {
+    if (quizData.questionCount === 10) {
         $('#quizContainer').empty();
         let msg = '';
-        if (right >= 8) {
+        if (quizData.rightCount >= 8) {
             msg = 'Congratulations!! We can tell you study a lot.'
-        } else if (right > 4 && right < 8) {
+        } else if (quizData.rightCount > 4 && quizData.rightCount < 8) {
             msg = 'Good Job! a bit more of study will get you to the top.'
         } else {
             msg = 'Aww, you need to study hard to be a Know-it-all.'
@@ -114,7 +142,7 @@ function quiz() {
         $('#quizContainer').append(
             `<img class="responsive-img" src="assets/img/logo.png" alt="">
             <h5>Results</h5>
-            <h6> Right Answers: ${right} / 10 </h6>
+            <h6> Right Answers: ${quizData.rightCount} / 10 </h6>
             <h6>  ${msg} </h6>
             <a id="refresh" class="waves-effect waves-light btn col s4 offset-s4">Play Again</a>
             <a id="logout" class="waves-effect waves-light btn col s4 offset-s4">Logout</a>`
@@ -128,129 +156,30 @@ function quiz() {
         myOpenTrivia.signOutButton.addEventListener('click', myOpenTrivia.signOut.bind(myOpenTrivia));
         return;
     }
-    $('#quizContainer').empty();
-    let answers = questions[numQuestion].incorrect_answers;
-    let rightAns = questions[numQuestion].correct_answer;
-    answers.push(rightAns);
-
-    shuffle(answers);
-
-    $('#quizContainer').append(
-        `<h5> ${questions[numQuestion].question}</h5>
-        <form id="formAnswers" action="#">
-        <p>
-        <input name="group1" type="radio" id="test1" />
-        <label for="test1">${answers[0]}</label>
-        </p>
-        <p>
-        <input name="group1" type="radio" id="test2" />
-        <label for="test2">${answers[1]}</label>
-        </p>
-        <p>
-        <input name="group1" type="radio" id="test3" />
-        <label for="test3">${answers[2]}</label>
-        </p>
-        <p>
-        <input name="group1" type="radio" id="test4" />
-        <label for="test4">${answers[3]}</label>
-        </p>
-        <a id="next" type="submit" class="waves-effect waves-light btn col s4 offset-s4">Next</a>
-        </form>`
-    );
-
-    $('#test1').focus(userAnswer);
-    $('#test2').focus(userAnswer);
-    $('#test3').focus(userAnswer);
-    $('#test4').focus(userAnswer);
-
-    $('#next').click(function (event) {
-        event.preventDefault();
-
-        if ($("input:radio[name='group1']").is(":checked") === false) {
-            alert("Must select an option.");
-            return;
-        }
-        
-        if (finalAnswer === rightAns) {
-            right++;
-        }
-        quiz();
-    });
-
-    numQuestion++;
-}
-
-function quizTF() {
-
-    if (numQuestion === 10) {
-        $('#quizContainer').empty();
-        let msg = '';
-        if (right >= 8) {
-            msg = 'Congratulations!! We can tell you study a lot.'
-        } else if (right > 4 && right < 8) {
-            msg = 'Good Job! a bit more of study will get you to the top.'
-        } else {
-            msg = 'Aww, you need to study hard to be a Know-it-all.'
-        }
-        $('#quizContainer').append(
-            `<img class="responsive-img" src="assets/img/logo.png" alt="">
-            <h5>Results</h5>
-            <h6> Right Answers: ${right} / 10 </h6>
-            <h6>  ${msg} </h6>
-            <a id="refresh" class="waves-effect waves-light btn col s4 offset-s4">Play Again</a>
-            <a id="logout" class="waves-effect waves-light btn col s4 offset-s4">Logout</a>`
-        );
-
-        $('#refresh').click(function () {
-            location.reload();
-        });
-        myOpenTrivia.signOutButton = document.getElementById('logout');
-        myOpenTrivia.signOutButton.addEventListener('click', myOpenTrivia.signOut.bind(myOpenTrivia));
     
-        return
-    }
-
-    $('#quizContainer').empty();
-    let rightAns = questions[numQuestion].correct_answer;
-
+    $('#quizContainer').empty();    
 
     $('#quizContainer').append(
-        `<h5> ${questions[numQuestion].question}</h5>
+        `<h5> ${quizData.questions[quizData.questionCount].question}</h5>
         <form id="formAnswers" action="#">
-        <p>
-        <input name="group1" type="radio" id="test1" />
-        <label for="test1">True</label>
-        </p>
-        <p>
-        <input name="group1" type="radio" id="test2" />
-        <label for="test2">False</label>
-        </p>
-        <a id="next" type="submit" class="waves-effect waves-light btn col s4 offset-s4">Next</a>
         </form>`
     );
-
-    $('#next').click(function (event) {
-        event.preventDefault();
-
-        if ($("input:radio[name='group1']").is(":checked") === false) {
-            alert("Must select an option.");
-            return;
-        }
-        
-        if (finalAnswer === rightAns) {
-            right++;
-        }
-        quizTF();
-    });
-
-    $('#test1').focus(userAnswer);
-    $('#test2').focus(userAnswer);
-    numQuestion++;
+    
+    for (i in quizData.choices) {
+        $('#quizContainer > #formAnswers').append(
+            `<p>
+            <input name="group1" type="radio" id="test${i + 1}" />
+            <label for="test${i + 1}">${quizData.choices[i]}</label>
+            </p>`
+        );
+        $(`#test${i + 1}`).focus(function (event) {    
+            const label = $(this).prop("labels");
+            quizData.currentChoice = $(label).html();
+        });
+    }
+    createNextBtn();
+    quizData.questionCount++;    
 }
-
-
-
-
 },{"shuffle-array":2}],2:[function(require,module,exports){
 'use strict';
 
